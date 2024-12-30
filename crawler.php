@@ -1,5 +1,9 @@
 <?php
 
+function logError($message) {
+    file_put_contents('error_log.txt', date('Y-m-d H:i:s') . " - " . $message . "\n", FILE_APPEND);
+}
+
 // Função para buscar o conteúdo da página
 function getPageContent($url) {
     $options = [
@@ -9,7 +13,11 @@ function getPageContent($url) {
         ]
     ];
     $context = stream_context_create($options);
-    return file_get_contents($url, false, $context);
+    $content = file_get_contents($url, false, $context);
+    if (!$content) {
+        return null;
+    }
+    return $content;
 }
 
 // Função para extrair os nicknames da página de listagem
@@ -19,9 +27,17 @@ function getNicknamesFromPage($url) {
 
     $dom = new DOMDocument();
     @$dom->loadHTML($content);
+    if (!$dom) {
+        die("Failed to load HTML content for URL: " . $url);
+    }
 
     $table = $dom->getElementsByTagName("tbody")->item(0);
-    $links = $table->getElementsByTagName("a");
+    if ($table) {
+        $links = $table->getElementsByTagName("a");
+    } else {
+        echo "No table found for URL: $url";
+        return [];
+    }
 
     foreach($links as $link) {
         $nicknames[] = $link->textContent;
@@ -34,9 +50,15 @@ function getNicknamesFromPage($url) {
 function getProfileData($nickName, $url) {
     $profile = [];
     $content = getPageContent($url . $nickName);
+    if (is_null($content)){
+        return null;
+    }
 
     $dom = new DOMDocument();
     @$dom->loadHTML($content);
+    if (!$dom) {
+        die("Failed to load HTML content for URL: " . $url);
+    }
 
     $section = $dom->getElementsByTagName("section")->item(0);
 
@@ -68,12 +90,18 @@ function getProfileData($nickName, $url) {
 function downloadImage($img, $nickName) {
     $imagename = basename($img);
     $imagePath = './imagens/' . $nickName . '.jpg';
-    
+
+    if (!file_exists("./imagens")) {
+        mkdir("./imagens", 0777, true);
+    }
+
     if (!file_exists($imagePath)) {
-        if (!file_exists("./imagens")) {
-            mkdir("./imagens", 0777);
+        $imageContent = file_get_contents($img);
+        if ($imageContent) {
+            file_put_contents($imagePath, $imageContent);
+        } else {
+            echo "Erro ao baixar a imagem para: $nickName";
         }
-        file_put_contents($imagePath, file_get_contents($img));
     }
 }
 
@@ -96,6 +124,10 @@ do {
     // Para cada nickname, colete as informações
     foreach($nickNames as $nick) {
         $profileData = getProfileData($nick, $url);
+        if (is_null($profileData)) {
+            continue;
+        }
+        
         $peoples[] = $profileData;
 
         // Baixar a imagem do perfil

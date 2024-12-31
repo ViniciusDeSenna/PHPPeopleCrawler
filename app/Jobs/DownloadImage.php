@@ -2,8 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Models\People;
+use Exception;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 class DownloadImage implements ShouldQueue
 {
@@ -26,18 +30,31 @@ class DownloadImage implements ShouldQueue
      */
     public function handle(): void
     {
-        $imagename = basename($this->img);
-        $imagePath = './imagens/' . $this->nick . '.jpg';
-
-        if (!file_exists("./imagens")) {
-            mkdir("./imagens", 0777, true);
-        }
-
-        if (!file_exists($imagePath)) {
-            $imageContent = file_get_contents($this->img);
-            if ($imageContent) {
-                file_put_contents($imagePath, $imageContent);
+        try {
+            $imagePath = 'imagens/' . $this->nick . '.jpg'; // Definindo o caminho do arquivo dentro do storage
+    
+            // Verificando se a pasta existe, caso contrário, cria
+            if (!Storage::exists('imagens')) {
+                Storage::makeDirectory('imagens');
             }
+    
+            // Verificando se a imagem já foi baixada
+            if (!Storage::exists($imagePath)) {
+                // Obtendo o conteúdo da imagem da URL fornecida
+                $imageContent = file_get_contents($this->img);
+    
+                if ($imageContent) {
+                    // Armazenando o arquivo no sistema de arquivos
+                    Storage::put($imagePath, $imageContent);
+                }
+            }
+
+            People::query()
+                ->where('nick', '=', $this->nick)
+                ->update(['profile_img_path' => $imagePath]);
+                
+        } catch (Exception $e) {
+            Log::error('Erro no DownloadImage: ' . $e->getMessage());
         }
     }
 }

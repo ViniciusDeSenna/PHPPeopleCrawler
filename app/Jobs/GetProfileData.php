@@ -66,7 +66,9 @@ class GetProfileData implements ShouldQueue
                 ]
             );
 
+            //$filas = explode(',', env('DB_QUEUE'));
             DownloadImage::dispatch($this->nick, $img);
+            //->onQueue($filas[array_rand($filas)]);
 
         }   catch(Exception $e) {
             Log::error('Erro no GetProfileData: ' . $e->getMessage());

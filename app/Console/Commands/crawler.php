@@ -6,6 +6,7 @@ use App\CrawlerUtil;
 use App\Jobs\GetProfileData;
 use Illuminate\Console\Command;
 use DOMDocument;
+use Illuminate\Support\Facades\Log;
 
 class crawler extends Command
 {
@@ -28,9 +29,10 @@ class crawler extends Command
      */
     public function handle()
     {
+        Log::info('Crawler Iniciado!');
+
         // URL base
         $url = "https://people.php.net/";
-        $peoples = [];
         $page = 0;
 
         // para cada Page chama a Job que pucha os data do NickName
@@ -42,7 +44,7 @@ class crawler extends Command
             $page++;
             $urlPage = $url . '?page=' . $page;
 
-            $nicknames = [];
+            $nickNames = [];
             $content = CrawlerUtil::getPageContent($urlPage);
 
             $dom = new DOMDocument();
@@ -55,9 +57,12 @@ class crawler extends Command
                 break;
             }
 
-            foreach($links as $link) {
-                $nicknames[] = $link->textContent;
-                GetProfileData::dispatch($url, $link->textContent);
+            //$filas = explode(',', env('DB_QUEUE'));
+            foreach($links as $index => $item) {
+                //$fila = $filas[$index % count($filas)];
+                $nickNames[] = $item->textContent;
+                GetProfileData::dispatch($url, $item->textContent);
+                //->onQueue($fila);
             }
 
             if (empty($nickNames)) {
@@ -65,5 +70,7 @@ class crawler extends Command
             }
 
         } while (!empty($nickNames));
+        
+        Log::info('Crawler Finalizado!');
     }
 }
